@@ -1,8 +1,8 @@
-function parseIp(ip: string): i32 {
-  let number: i32 = 0;
-  let exp: i32 = 0;
+function parseIp(ip: string): i64 {
+  let number: i64 = 0;
+  let exp: i64 = 0;
 
-  const n_s: i32[] = ip.split('.').map((i: string) => i32.parse(i)).reverse();
+  const n_s: i64[] = ip.split('.').map((i: string) => i64.parse(i)).reverse();
 
   for (let i = 0; i < 4; i++) {
     const n = n_s[i];
@@ -14,11 +14,11 @@ function parseIp(ip: string): i32 {
   return number;
 }
 
-function stringifyIp(number: i32): string {
+function stringifyIp(number: i64): string {
   let step = 24;
   const stepReduction = 8;
   let remain = number;
-  const parts: i32[] = [];
+  const parts: i64[] = [];
 
   while (step > 0) {
     const divisor = 2 ** step;
@@ -31,28 +31,30 @@ function stringifyIp(number: i32): string {
   return parts.join('.');
 }
 
-export function parse(cidr: string): StaticArray<i32> {
+export function parse(cidr: string): StaticArray<i64> {
   const splitted = cidr.split('/');
 
   const ip = splitted[0];
-  const prefix = splitted.length === 1 ? 32 : i32.parse(splitted[1]);
+  const prefix: i32 = splitted.length === 1 ? 32 : i32.parse(splitted[1]);
 
   const number = parseIp(ip);
   const ipBits = number.toString(2).padStart(32, '0');
 
-  const prefixLen = 32 - prefix;
+  const prefixLen: i32 = 32 - prefix;
   const startBits = ipBits.substring(0, 32 - prefixLen);
-  const start = i32.parse(`0b${startBits}${"0".repeat(prefixLen)}`);
-  const end = i32.parse(`0b${startBits}${"1".repeat(prefixLen)}`);
+
+  const start = i64.parse(`0b${startBits}${'0'.repeat(prefixLen)}`);
+  const end = i64.parse(`0b${startBits}${'1'.repeat(prefixLen)}`);
+
   return StaticArray.fromArray([start, end]);
 }
 
-function mapNets(nets: StaticArray<i32>[]): Map<i32, i32[]> {
-  const v4 = new Map<i32, i32[]>();
+function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
+  const v4 = new Map<i64, i64[]>();
 
   for (let i = 0, len = nets.length; i < len; i++) {
-    const start: i32 = nets[i][0];
-    const end: i32 = nets[i][1];
+    const start: i64 = nets[i][0];
+    const end: i64 = nets[i][1];
 
     if (!v4.has(start)) {
       v4.set(start, [0, 0]);
@@ -84,18 +86,18 @@ function mapNets(nets: StaticArray<i32>[]): Map<i32, i32[]> {
 }
 
 // @inline
-function diff(a: i32, b: i32): i32 {
+function diff(a: i64, b: i64): i64 {
   a += 1;
   return a - b;
 }
 
 // @inline
-function biggestPowerOfTwo(num: i32): i32 {
+function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
-  return 2 ** i32.parse((num.toString(2).length - 1).toString());
+  return 2 ** i64.parse((num.toString(2).length - 1).toString());
 }
 
-function subparts($start: i32, $end: i32): i32[][] {
+function subparts($start: i64, $end: i64): i64[][] {
   // special case for when part is length 1
   if (($end - $start) === 1) {
     if ($end % 2 === 0) {
@@ -108,7 +110,7 @@ function subparts($start: i32, $end: i32): i32[][] {
   const size = diff($end, $start);
   let biggest = biggestPowerOfTwo(size);
 
-  let start: i32, end: i32;
+  let start: i64, end: i64;
   if (size === biggest && $start + size === $end) {
     return [[$start, $end]];
   } else if ($start % biggest === 0) {
@@ -135,7 +137,7 @@ function subparts($start: i32, $end: i32): i32[][] {
     }
   }
 
-  let parts: i32[][] = [[start, end]];
+  let parts: i64[][] = [[start, end]];
 
   // additional subnets on left side
   if (start !== $start) {
@@ -150,7 +152,7 @@ function subparts($start: i32, $end: i32): i32[][] {
   return parts;
 }
 
-function formatPart(start: i32, end: i32): string {
+function formatPart(start: i64, end: i64): string {
   const ip = stringifyIp(start);
   const bin = diff(end, start).toString(2);
   let zeroes = 0;
@@ -166,7 +168,7 @@ function formatPart(start: i32, end: i32): string {
 }
 
 export function merge(nets: StaticArray<string>): string[] {
-  const toBeMapped: StaticArray<i32>[] = [];
+  const toBeMapped: StaticArray<i64>[] = [];
 
   for (let i = 0, len = nets.length; i < len; i++) {
     toBeMapped.push(parse(nets[i]));
@@ -175,20 +177,24 @@ export function merge(nets: StaticArray<string>): string[] {
   const maps = mapNets(toBeMapped);
 
   const merged: string[] = [];
-  let start = -1;
-  let end = -1;
+  let start: i64 = -1;
+  let end: i64 = -1;
 
-  const numbers: i32[] = maps.keys();
-  numbers.sort((a, b) => a - b);
+  const numbers: i64[] = maps.keys();
+  numbers.sort((a: i64, b: i64) => {
+    if (a > b) return 1;
+    if (a < b) return -1;
+    return 0;
+  });
 
-  let depth = 0;
+  let depth: i64 = 0;
 
   for (let index = 0, len = numbers.length; index < len; index++) {
     const number = numbers[index];
     const marker = maps.get(number);
 
-    const marker_0 = marker[0];
-    const marker_1 = marker[1];
+    const marker_0: i64 = marker[0];
+    const marker_1: i64 = marker[1];
 
     if (start === -1 && marker_0) {
       start = number;
@@ -203,14 +209,14 @@ export function merge(nets: StaticArray<string>): string[] {
     if (index === len - 1) {
       const p2 = subparts(start, end);
       for (let j = 0, len = p2.length; j < len; j++) {
-        const $2: i32[] = p2[j];
+        const $2: i64[] = p2[j];
 
         merged.push(formatPart($2[0], $2[1]));
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
-        const $1: i32[] = p1[i];
+        const $1: i64[] = p1[i];
 
         merged.push(formatPart($1[0], $1[1]));
       }
@@ -223,8 +229,8 @@ export function merge(nets: StaticArray<string>): string[] {
 }
 
 // exclude b from a and return remainder cidrs
-function excludeNets(a: StaticArray<i32>, b: StaticArray<i32>, a_cidr: string): string[] {
-  const parts: i32[][] = [];
+function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): string[] {
+  const parts: i64[][] = [];
 
   const a_start = a[0];
   const a_end = a[1];
@@ -304,6 +310,7 @@ export function exclude(_basenets: StaticArray<string>, _exclnets: StaticArray<s
 
       const base = parse(basecidr);
       const excl = parse(exclcidr);
+
       const remainders = excludeNets(base, excl, basecidr);
 
       if (remainders.length !== 1 || basecidr !== remainders[0]) {
