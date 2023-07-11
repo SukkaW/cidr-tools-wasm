@@ -1,8 +1,15 @@
 {
   "name": "cidr-tools-wasm",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "./build/release.js",
+  "files": [
+    "build/release.js",
+    "build/release.wasm",
+    "build/release.wat",
+    "build/release.wasm.map",
+    "build/release.d.ts"
+  ],
   "scripts": {
     "test": "mocha",
     "asbuild:debug": "asc assembly/index.ts --target debug",
@@ -10,8 +17,8 @@
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
     "start": "npx serve ."
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Sukka <https://skk.moe>",
+  "license": "MIT",
   "devDependencies": {
     "assemblyscript": "^0.27.5",
     "chai": "^4.3.7",

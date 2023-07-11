@@ -221,3 +221,97 @@ export function merge(nets: StaticArray<string>): string[] {
 
   return merged;
 }
+
+// exclude b from a and return remainder cidrs
+function excludeNets(a: StaticArray<i32>, b: StaticArray<i32>, a_cidr: string): string[] {
+  const parts: i32[][] = [];
+
+  const a_start = a[0];
+  const a_end = a[1];
+
+  const b_start = b[0];
+  const b_end = b[1];
+
+  // compareTo returns negative if left is less than right
+
+  //       aaa
+  //   bbb
+  //   aaa
+  //       bbb
+  if (a_start > b_end || a_end < b_start) {
+    return [a_cidr];
+  }
+
+  //   aaa
+  //   bbb
+  if (a_start === b_start && a_end === b_end) {
+    return [];
+  }
+
+  //   aa
+  //  bbbb
+  if (a_start > b_start && a_end < b_end) {
+    return [];
+  }
+
+  // aaaa
+  //   bbbb
+  // aaaa
+  //   bb
+  if (a_start < b_start && a_end <= b_end) {
+    parts.push([a_start, b_start - 1]);
+  }
+
+  //    aaa
+  //   bbb
+  //   aaaa
+  //   bbb
+  if (a_start >= b_start && a_end > b_end) {
+    parts.push([b_end + 1, a_end]);
+  }
+
+  //  aaaa
+  //   bb
+  if (a_start < b_start && a_end > b_end) {
+    parts.push([a_start, b_start - 1]);
+    parts.push([b_end + 1, a_end]);
+  }
+
+  const remaining: string[] = [];
+
+  for (let i = 0, len = parts.length; i < len; i++) {
+    const part = parts[i];
+    const subpart = subparts(part[0], part[1]);
+
+    for (let j = 0, len2 = subpart.length; j < len2; j++) {
+      const $ = subpart[j];
+      remaining.push(formatPart($[0], $[1]));
+    }
+  }
+
+  return merge(StaticArray.fromArray(remaining));
+}
+
+export function exclude(_basenets: StaticArray<string>, _exclnets: StaticArray<string>): string[] {
+  let basenets: string[] = _basenets.length === 1 ? _basenets.slice() : merge(_basenets);
+  const exclnets: string[] = _exclnets.length === 1 ? _exclnets.slice() : merge(_exclnets);
+
+  for (let i = 0, len = exclnets.length; i < len; i++) {
+    const exclcidr = exclnets[i];
+
+    for (let index = 0, len2 = basenets.length; index < len2; index++) {
+      const basecidr = basenets[index];
+
+      const base = parse(basecidr);
+      const excl = parse(exclcidr);
+      const remainders = excludeNets(base, excl, basecidr);
+
+      if (remainders.length !== 1 || basecidr !== remainders[0]) {
+        basenets = basenets.concat(remainders);
+        basenets.splice(index, 1);
+      }
+    }
+  }
+
+  return basenets;
+}
