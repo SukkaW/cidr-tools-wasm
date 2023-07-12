@@ -1,22 +1,30 @@
-// @ts-expect-error -- special assemblyscript directive
+// @ts-expect-error -- special assemblyscript instruction
 @inline
 function parseIp(ip: string): i64 {
   let number: i64 = 0;
   let exp: i64 = 0;
 
-  const n_s: i64[] = ip.split('.').map((i: string) => i64.parse(i)).reverse();
+  let reversed_exp = 24;
 
-  for (let i = 0; i < 4; i++) {
-    const n = n_s[i];
+  let n_s_buffer = '';
+  for (let i = 0, len = ip.length; i < len; i++) {
+    const s = ip.charAt(i);
+    if (s === '.') {
+      number += i64.parse(n_s_buffer) * (2 ** reversed_exp);
+      reversed_exp -= 8;
 
-    number += n * (2 ** exp);
-    exp += 8;
+      n_s_buffer = '';
+    } else {
+      n_s_buffer += s;
+    }
   }
+
+  number += i64.parse(n_s_buffer) * (2 ** reversed_exp);
 
   return number;
 }
 
-// @ts-expect-error -- special assemblyscript directive
+// @ts-expect-error -- special assemblyscript instruction
 @inline
 function stringifyIp(number: i64): string {
   let step: i64 = 24;
@@ -25,26 +33,73 @@ function stringifyIp(number: i64): string {
 
   while (step > 0) {
     const divisor = 2 ** step;
-    str += `${remain / divisor}.`;
+    str += (remain / divisor).toString();
+    str += '.';
 
     remain = number % divisor;
     step -= 8;
   }
+
   str += remain.toString();
+
   return str;
 }
 
-export function parse(cidr: string): StaticArray<i64> {
-  const splitted = cidr.split('/');
+// @ts-expect-error -- special assemblyscript instruction
+@inline
+function number_to_binary_str_with_prefix_zeros(input: i64, target_length: i32): string {
+  let result = '';
+  for (let i = target_length - 1; i >= 0; i--) {
+    if (((input >> i) & 1) === 0) {
+      result += '0';
+    } else {
+      result += '1';
+    }
+  };
+  return result;
+}
 
-  const ip = splitted[0];
-  const prefix: i32 = splitted.length === 1 ? 32 : i32.parse(splitted[1]);
+// @ts-expect-error -- special assemblyscript instruction
+@inline
+function number_to_binary_str(input: i64): string {
+  let binary = '';
+  while (input > 0) {
+    if ((input & 1) === 0) {
+      binary = '0' + binary;
+    } else {
+      binary = '1' + binary;
+    }
+    input = input >> 1;
+  }
+  return binary;
+}
+
+export function parse(cidr: string): StaticArray<i64> {
+  let ip = '';
+  let prefix_str = '';
+
+  let state: i32 = 0;
+  for (let i = 0, len = cidr.length; i < len; i++) {
+    const s = cidr.charAt(i);
+    if (state === 0) {
+      if (s === '/') {
+        state = 1;
+      } else {
+        ip += s;
+      }
+    } else {
+      prefix_str += s;
+    }
+  }
+
+  const prefix: i32 = prefix_str.length > 0 ? i32.parse(prefix_str) : 32;
+  const prefixLen: i32 = 32 - prefix;
 
   const number = parseIp(ip);
-  const ipBits = number.toString(2).padStart(32, '0');
 
-  const prefixLen: i32 = 32 - prefix;
-  const startBits = ipBits.substring(0, 32 - prefixLen);
+  const startBits = (
+    /** ipBits */ number_to_binary_str_with_prefix_zeros(number, 32)
+  ).substring(0, 32 - prefixLen);
 
   const start = i64.parse(`0b${startBits}${'0'.repeat(prefixLen)}`);
   const end = i64.parse(`0b${startBits}${'1'.repeat(prefixLen)}`);
@@ -88,18 +143,18 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
   return v4;
 }
 
-// @ts-expect-error -- special assemblyscript directive
+// @ts-expect-error -- special assemblyscript instruction
 @inline
 function diff(a: i64, b: i64): i64 {
   a += 1;
   return a - b;
 }
 
-// @ts-expect-error -- special assemblyscript directive
+// @ts-expect-error -- special assemblyscript instruction
 @inline
 function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
-  return 2 ** i64.parse((num.toString(2).length - 1).toString());
+  return 2 ** i64(number_to_binary_str(num).length - 1);
 }
 
 function subparts($start: i64, $end: i64): i64[][] {
@@ -157,12 +212,14 @@ function subparts($start: i64, $end: i64): i64[][] {
   return parts;
 }
 
+const ZERO_CHARCODE = 48 /* '0'.charCodeAt(0) */;
+
 function formatPart(start: i64, end: i64): string {
-  const bin = diff(end, start).toString(2);
+  const bin = number_to_binary_str(diff(end, start));
   let zeroes = 0;
 
   for (let i = 0, len = bin.length; i < len; i++) {
-    if (bin.charAt(i) === '0') {
+    if (bin.charCodeAt(i) === ZERO_CHARCODE) {
       zeroes++;
     }
   }
