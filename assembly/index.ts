@@ -1,3 +1,5 @@
+// @ts-expect-error -- special assemblyscript directive
+@inline
 function parseIp(ip: string): i64 {
   let number: i64 = 0;
   let exp: i64 = 0;
@@ -14,21 +16,22 @@ function parseIp(ip: string): i64 {
   return number;
 }
 
+// @ts-expect-error -- special assemblyscript directive
+@inline
 function stringifyIp(number: i64): string {
-  let step = 24;
-  const stepReduction = 8;
-  let remain = number;
-  const parts: i64[] = [];
+  let step: i64 = 24;
+  let remain: i64 = number;
+  let str = '';
 
   while (step > 0) {
     const divisor = 2 ** step;
-    parts.push(remain / divisor);
-    remain = number % divisor;
-    step -= stepReduction;
-  }
-  parts.push(remain);
+    str += `${remain / divisor}.`;
 
-  return parts.join('.');
+    remain = number % divisor;
+    step -= 8;
+  }
+  str += remain.toString();
+  return str;
 }
 
 export function parse(cidr: string): StaticArray<i64> {
@@ -85,13 +88,15 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
   return v4;
 }
 
-// @inline
+// @ts-expect-error -- special assemblyscript directive
+@inline
 function diff(a: i64, b: i64): i64 {
   a += 1;
   return a - b;
 }
 
-// @inline
+// @ts-expect-error -- special assemblyscript directive
+@inline
 function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
   return 2 ** i64.parse((num.toString(2).length - 1).toString());
@@ -153,7 +158,6 @@ function subparts($start: i64, $end: i64): i64[][] {
 }
 
 function formatPart(start: i64, end: i64): string {
-  const ip = stringifyIp(start);
   const bin = diff(end, start).toString(2);
   let zeroes = 0;
 
@@ -164,7 +168,7 @@ function formatPart(start: i64, end: i64): string {
   }
 
   const prefix = 32 - zeroes;
-  return `${ip}/${prefix}`;
+  return `${stringifyIp(start)}/${prefix}`;
 }
 
 export function merge(nets: StaticArray<string>): string[] {
