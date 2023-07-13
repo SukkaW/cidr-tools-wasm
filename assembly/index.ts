@@ -122,6 +122,7 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
     }
 
     const _1 = v4.get(start);
+
     if (_1[0]) {
       _1[0] += 1;
       v4.set(start, _1);
@@ -157,6 +158,8 @@ function biggestPowerOfTwo(num: i64): i64 {
   return 2 ** i64(number_to_binary_str(num).length - 1);
 }
 
+// @ts-expect-error -- special assemblyscript instruction
+@inline
 function subparts($start: i64, $end: i64): i64[][] {
   // special case for when part is length 1
   if (($end - $start) === 1) {
@@ -228,7 +231,7 @@ function formatPart(start: i64, end: i64): string {
   return `${stringifyIp(start)}/${prefix}`;
 }
 
-export function merge(nets: StaticArray<string>): string[] {
+export function merge(nets: string[]): string[] {
   const toBeMapped: StaticArray<i64>[] = [];
 
   for (let i = 0, len = nets.length; i < len; i++) {
@@ -356,12 +359,12 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): 
     }
   }
 
-  return merge(StaticArray.fromArray(remaining));
+  return merge(remaining);
 }
 
-export function exclude(_basenets: StaticArray<string>, _exclnets: StaticArray<string>): string[] {
-  let basenets: string[] = _basenets.length === 1 ? _basenets.slice() : merge(_basenets);
-  const exclnets: string[] = _exclnets.length === 1 ? _exclnets.slice() : merge(_exclnets);
+export function exclude(_basenets: string[], _exclnets: string[]): string[] {
+  let basenets: string[] = _basenets.length === 1 ? _basenets : merge(_basenets);
+  const exclnets: string[] = _exclnets.length === 1 ? _exclnets : merge(_exclnets);
 
   for (let i = 0, len = exclnets.length; i < len; i++) {
     const exclcidr = exclnets[i];
