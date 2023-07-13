@@ -365,12 +365,11 @@ export function exclude(_basenets: StaticArray<string>, _exclnets: StaticArray<s
 
   for (let i = 0, len = exclnets.length; i < len; i++) {
     const exclcidr = exclnets[i];
+    const excl = parse(exclcidr);
 
     for (let index = 0; index < basenets.length; index++) {
       const basecidr = basenets[index];
-
       const base = parse(basecidr);
-      const excl = parse(exclcidr);
 
       const remainders = excludeNets(base, excl, basecidr);
 
