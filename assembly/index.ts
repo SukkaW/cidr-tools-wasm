@@ -262,16 +262,11 @@ function single_range_to_single_cidr(start: i64, end: i64): string {
   return `${int_to_ip_str(start)}/${bits}`;
 }
 
-export function merge(nets: string[]): string[] {
-  const toBeMapped: StaticArray<i64>[] = [];
+function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
+  const merged: StaticArray<i64>[] = [];
 
-  for (let i = 0, len = nets.length; i < len; i++) {
-    toBeMapped.push(parse(nets[i]));
-  }
+  const maps = mapNets(nets);
 
-  const maps = mapNets(toBeMapped);
-
-  const merged: string[] = [];
   let start: i64 = -1;
   let end: i64 = -1;
 
@@ -305,14 +300,14 @@ export function merge(nets: string[]): string[] {
       for (let j = 0, len = p2.length; j < len; j++) {
         const $2: i64[] = p2[j];
 
-        merged.push(single_range_to_single_cidr($2[0], $2[1]));
+        merged.push([$2[0], $2[1]]);
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
         const $1: i64[] = p1[i];
 
-        merged.push(single_range_to_single_cidr($1[0], $1[1]));
+        merged.push([$1[0], $1[1]]);
       }
       start = -1;
       end = -1;
@@ -322,9 +317,27 @@ export function merge(nets: string[]): string[] {
   return merged;
 }
 
+export function merge(nets: string[]): string[] {
+  const toBeMapped: StaticArray<i64>[] = [];
+
+  for (let i = 0, len = nets.length; i < len; i++) {
+    toBeMapped.push(parse(nets[i]));
+  }
+
+  const merged = inner_merge(toBeMapped);
+  const results: string[] = [];
+
+  for (let i = 0, len = merged.length; i < len; i++) {
+    const net = merged[i];
+    results.push(single_range_to_single_cidr(net[0], net[1]));
+  }
+
+  return results;
+}
+
 // exclude b from a and return remainder cidrs
-function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): string[] {
-  const parts: i64[][] = [];
+function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>[] {
+  const parts: StaticArray<i64>[] = [];
 
   const a_start = a[0];
   const a_end = a[1];
@@ -339,7 +352,7 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): 
   //   aaa
   //       bbb
   if (a_start > b_end || a_end < b_start) {
-    return [a_cidr];
+    return [a];
   }
 
   //   aaa
@@ -377,7 +390,7 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): 
     parts.push([b_end + 1, a_end]);
   }
 
-  const remaining: string[] = [];
+  const remaining: StaticArray<i64>[] = [];
 
   for (let i = 0, len = parts.length; i < len; i++) {
     const part = parts[i];
@@ -385,33 +398,45 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): 
 
     for (let j = 0, len2 = subpart.length; j < len2; j++) {
       const $ = subpart[j];
-      remaining.push(single_range_to_single_cidr($[0], $[1]));
+      remaining.push([$[0], $[1]]);
     }
   }
 
-  return merge(remaining);
+  return inner_merge(remaining);
 }
 
 export function exclude(_basenets: string[], _exclnets: string[]): string[] {
-  let basenets: string[] = _basenets.length === 1 ? _basenets : merge(_basenets);
   const exclnets: string[] = _exclnets.length === 1 ? _exclnets : merge(_exclnets);
+
+  let basenets_tuple: StaticArray<i64>[] = [];
+  if (_basenets.length === 1) {
+    basenets_tuple.push(parse(_basenets[0]));
+  } else {
+    for (let i = 0, len = _basenets.length; i < len; i++) {
+      basenets_tuple.push(parse(_basenets[i]));
+    }
+    basenets_tuple = inner_merge(basenets_tuple);
+  }
 
   for (let i = 0, len = exclnets.length; i < len; i++) {
     const exclcidr = exclnets[i];
     const excl = parse(exclcidr);
 
-    for (let index = 0; index < basenets.length; index++) {
-      const basecidr = basenets[index];
-      const base = parse(basecidr);
+    for (let index = 0; index < basenets_tuple.length; index++) {
+      const base = basenets_tuple[index];
+      const remainders = excludeNets(base, excl);
 
-      const remainders = excludeNets(base, excl, basecidr);
-
-      if (remainders.length !== 1 || basecidr !== remainders[0]) {
-        basenets = basenets.concat(remainders);
-        basenets.splice(index, 1);
+      if (remainders.length !== 1 || remainders[0][0] !== base[0] || remainders[0][1] !== base[1]) {
+        basenets_tuple = basenets_tuple.concat(remainders);
+        basenets_tuple.splice(index, 1);
       }
     }
   }
 
-  return basenets;
+  const results: string[] = [];
+  for (let i = 0, len = basenets_tuple.length; i < len; i++) {
+    const net = basenets_tuple[i];
+    results.push(single_range_to_single_cidr(net[0], net[1]));
+  }
+  return results;
 }
