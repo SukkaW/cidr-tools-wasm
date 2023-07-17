@@ -55,19 +55,19 @@ function int_to_ip_str(number: i64): string {
   return `${part_0}.${part_1}.${part_2}.${part_3}`;
 }
 
-// @ts-expect-error -- special assemblyscript instruction
-@inline
-function number_to_binary_str_with_prefix_zeros(input: i64, target_length: i32): string {
-  let result = '';
-  for (let i = target_length - 1; i >= 0; i--) {
-    if (((input >> i) & 1) === 0) {
-      result += '0';
-    } else {
-      result += '1';
-    }
-  };
-  return result;
-}
+//// @ts-expect-error -- special assemblyscript instruction
+// @inline
+// function number_to_binary_str_with_prefix_zeros(input: i64, target_length: i32): string {
+//   let result = '';
+//   for (let i = target_length - 1; i >= 0; i--) {
+//     if (((input >> i) & 1) === 0) {
+//       result += '0';
+//     } else {
+//       result += '1';
+//     }
+//   };
+//   return result;
+// }
 
 // @ts-expect-error -- special assemblyscript instruction
 @inline
@@ -102,17 +102,17 @@ export function parse(cidr: string): StaticArray<i64> {
     }
   }
 
-  const prefix: i32 = prefix_str.length > 0 ? i32.parse(prefix_str) : 32;
-  const prefixLen: i32 = 32 - prefix;
+  const bitmask: i64 = prefix_str.length > 0 ? i64.parse(prefix_str) : 32;
+  let mask_long: i64 = 0;
+  if (bitmask > 0) {
+    mask_long = (0xffffffff << (32 - bitmask)) >>> 0;
+  }
 
-  const number = ip_str_to_int(ip);
+  const net_long: i64 = ip_str_to_int(ip) & mask_long;
+  const size: i64 = 2 ** (32 - bitmask);
 
-  const startBits = (
-    /** ipBits */ number_to_binary_str_with_prefix_zeros(number, 32)
-  ).substring(0, 32 - prefixLen);
-
-  const start = i64.parse(`0b${startBits}${'0'.repeat(prefixLen)}`);
-  const end = i64.parse(`0b${startBits}${'1'.repeat(prefixLen)}`);
+  const start = net_long;
+  const end = net_long + size - 1;
 
   return StaticArray.fromArray([start, end]);
 }
@@ -225,20 +225,28 @@ function subparts($start: i64, $end: i64): i64[][] {
   return parts;
 }
 
-const ZERO_CHARCODE = 48 /* '0'.charCodeAt(0) */;
+// const ZERO_CHARCODE = 48 /* '0'.charCodeAt(0) */;
 
-function formatPart(start: i64, end: i64): string {
-  const bin = number_to_binary_str(diff(end, start));
-  let zeroes = 0;
+function single_range_to_single_cidr(start: i64, end: i64): string {
+  // const bin = number_to_binary_str(diff(end, start));
+  // let zeroes = 0;
 
-  for (let i = 0, len = bin.length; i < len; i++) {
-    if (bin.charCodeAt(i) === ZERO_CHARCODE) {
-      zeroes++;
-    }
+  // for (let i = 0, len = bin.length; i < len; i++) {
+  //   if (bin.charCodeAt(i) === ZERO_CHARCODE) {
+  //     zeroes++;
+  //   }
+  // }
+
+  // const prefix = 32 - zeroes;
+  // return `${int_to_ip_str(start)}/${prefix}`;
+
+  let bits: i64 = 32;
+  let reseau: i64 = start;
+  while ((start & (1 << (32 - bits))) === 0 && (reseau | (1 << (32 - bits))) <= end) {
+    reseau |= (1 << (32 - bits));
+    bits -= 1;
   }
-
-  const prefix = 32 - zeroes;
-  return `${int_to_ip_str(start)}/${prefix}`;
+  return `${int_to_ip_str(start)}/${bits}`;
 }
 
 export function merge(nets: string[]): string[] {
@@ -285,14 +293,14 @@ export function merge(nets: string[]): string[] {
       for (let j = 0, len = p2.length; j < len; j++) {
         const $2: i64[] = p2[j];
 
-        merged.push(formatPart($2[0], $2[1]));
+        merged.push(single_range_to_single_cidr($2[0], $2[1]));
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
         const $1: i64[] = p1[i];
 
-        merged.push(formatPart($1[0], $1[1]));
+        merged.push(single_range_to_single_cidr($1[0], $1[1]));
       }
       start = -1;
       end = -1;
@@ -365,7 +373,7 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>, a_cidr: string): 
 
     for (let j = 0, len2 = subpart.length; j < len2; j++) {
       const $ = subpart[j];
-      remaining.push(formatPart($[0], $[1]));
+      remaining.push(single_range_to_single_cidr($[0], $[1]));
     }
   }
 
