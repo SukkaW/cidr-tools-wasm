@@ -178,7 +178,7 @@ function diff(a: i64, b: i64): i64 {
 @inline
 function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
-  return 2 ** i64(number_to_binary_length(num) - 1);
+  return 2 ** (number_to_binary_length(num) - 1);
 }
 
 function subparts($start: i64, $end: i64): StaticArray<i64>[] {
