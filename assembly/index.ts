@@ -181,7 +181,7 @@ function biggestPowerOfTwo(num: i64): i64 {
   return 2 ** i64(number_to_binary_length(num) - 1);
 }
 
-function subparts($start: i64, $end: i64): i64[][] {
+function subparts($start: i64, $end: i64): StaticArray<i64>[] {
   // special case for when part is length 1
   if (($end - $start) === 1) {
     if ($end % 2 === 0) {
@@ -223,7 +223,7 @@ function subparts($start: i64, $end: i64): i64[][] {
     }
   }
 
-  let parts: i64[][] = [[start, end]];
+  let parts: StaticArray<i64>[] = [[start, end]];
 
   // additional subnets on left side
   if (start !== $start) {
@@ -298,14 +298,14 @@ function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
     if (index === len - 1) {
       const p2 = subparts(start, end);
       for (let j = 0, len = p2.length; j < len; j++) {
-        const $2: i64[] = p2[j];
+        const $2: StaticArray<i64> = p2[j];
 
         merged.push([$2[0], $2[1]]);
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
-        const $1: i64[] = p1[i];
+        const $1: StaticArray<i64> = p1[i];
 
         merged.push([$1[0], $1[1]]);
       }
