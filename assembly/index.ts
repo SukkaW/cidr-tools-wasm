@@ -1,17 +1,34 @@
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function parseIp(ip: string): i64 {
-  let number: i64 = 0;
-  let exp: i64 = 0;
-
-  let reversed_exp = 24;
+function ip_str_to_int(ip: string): i64 {
+  let ip_part_index = 0
 
   let n_s_buffer = '';
+
+  let ip_part_0 = '';
+  let ip_part_1 = '';
+  let ip_part_2 = '';
+  let ip_part_3 = '';
+
   for (let i = 0, len = ip.length; i < len; i++) {
     const s = ip.charAt(i);
     if (s === '.') {
-      number += i64.parse(n_s_buffer) * (2 ** reversed_exp);
-      reversed_exp -= 8;
+      switch (ip_part_index) {
+        case 0:
+          ip_part_0 = n_s_buffer;
+          break;
+        case 1:
+          ip_part_1 = n_s_buffer;
+          break;
+        case 2:
+          ip_part_2 = n_s_buffer;
+          break;
+        case 3:
+          ip_part_3 = n_s_buffer;
+          break;
+      }
+
+      ip_part_index += 1;
 
       n_s_buffer = '';
     } else {
@@ -19,30 +36,23 @@ function parseIp(ip: string): i64 {
     }
   }
 
-  number += i64.parse(n_s_buffer) * (2 ** reversed_exp);
+  ip_part_3 = n_s_buffer;
 
-  return number;
+  return (i64.parse(ip_part_0) << 24
+    | i64.parse(ip_part_1) << 16
+    | i64.parse(ip_part_2) << 8
+    | i64.parse(ip_part_3));
 }
 
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function stringifyIp(number: i64): string {
-  let step: i64 = 24;
-  let remain: i64 = number;
-  let str = '';
+function int_to_ip_str(number: i64): string {
+  const part_0 = number >>> 24;
+  const part_1 = (number >>> 16) & 0xff;
+  const part_2 = (number >>> 8) & 0xff;
+  const part_3 = number & 0xff;
 
-  while (step > 0) {
-    const divisor = 2 ** step;
-    str += (remain / divisor).toString();
-    str += '.';
-
-    remain = number % divisor;
-    step -= 8;
-  }
-
-  str += remain.toString();
-
-  return str;
+  return `${part_0}.${part_1}.${part_2}.${part_3}`;
 }
 
 // @ts-expect-error -- special assemblyscript instruction
@@ -95,7 +105,7 @@ export function parse(cidr: string): StaticArray<i64> {
   const prefix: i32 = prefix_str.length > 0 ? i32.parse(prefix_str) : 32;
   const prefixLen: i32 = 32 - prefix;
 
-  const number = parseIp(ip);
+  const number = ip_str_to_int(ip);
 
   const startBits = (
     /** ipBits */ number_to_binary_str_with_prefix_zeros(number, 32)
@@ -158,8 +168,6 @@ function biggestPowerOfTwo(num: i64): i64 {
   return 2 ** i64(number_to_binary_str(num).length - 1);
 }
 
-// @ts-expect-error -- special assemblyscript instruction
-@inline
 function subparts($start: i64, $end: i64): i64[][] {
   // special case for when part is length 1
   if (($end - $start) === 1) {
@@ -173,10 +181,12 @@ function subparts($start: i64, $end: i64): i64[][] {
   const size = diff($end, $start);
   let biggest = biggestPowerOfTwo(size);
 
-  let start: i64, end: i64;
   if (size === biggest && $start + size === $end) {
     return [[$start, $end]];
-  } else if ($start % biggest === 0) {
+  }
+
+  let start: i64, end: i64;
+  if ($start % biggest === 0) {
     // start is matching on the size-defined boundary - ex: 0-12, use 0-8
     start = $start;
     end = start + biggest - 1;
@@ -228,7 +238,7 @@ function formatPart(start: i64, end: i64): string {
   }
 
   const prefix = 32 - zeroes;
-  return `${stringifyIp(start)}/${prefix}`;
+  return `${int_to_ip_str(start)}/${prefix}`;
 }
 
 export function merge(nets: string[]): string[] {
