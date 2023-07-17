@@ -1,6 +1,6 @@
 {
   "name": "cidr-tools-wasm",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "",
   "main": "./build/release.js",
   "files": [
@@ -21,7 +21,9 @@
   "license": "MIT",
   "devDependencies": {
     "assemblyscript": "^0.27.5",
+    "benny": "^3.7.1",
     "chai": "^4.3.7",
+    "cidr-tools": "^6.4.1",
     "mocha": "^10.2.0"
   },
   "type": "module",
