@@ -69,19 +69,32 @@ function int_to_ip_str(number: i64): string {
 //   return result;
 // }
 
+// // @ts-expect-error -- special assemblyscript instruction
+// @inline
+// function number_to_binary_str(input: i64): string {
+//   let binary = '';
+//   while (input > 0) {
+//     if ((input & 1) === 0) {
+//       binary = '0' + binary;
+//     } else {
+//       binary = '1' + binary;
+//     }
+//     input = input >> 1;
+//   }
+//   return binary;
+// }
+
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function number_to_binary_str(input: i64): string {
-  let binary = '';
+function number_to_binary_length(input: i64): i64 {
+  let len: i64 = 0;
+
   while (input > 0) {
-    if ((input & 1) === 0) {
-      binary = '0' + binary;
-    } else {
-      binary = '1' + binary;
-    }
+    len += 1;
     input = input >> 1;
   }
-  return binary;
+
+  return len;
 }
 
 export function parse(cidr: string): StaticArray<i64> {
@@ -105,7 +118,7 @@ export function parse(cidr: string): StaticArray<i64> {
   const bitmask: i64 = prefix_str.length > 0 ? i64.parse(prefix_str) : 32;
   let mask_long: i64 = 0;
   if (bitmask > 0) {
-    mask_long = (0xffffffff << (32 - bitmask)) >>> 0;
+    mask_long = 0xffffffff << (32 - bitmask);
   }
 
   const net_long: i64 = ip_str_to_int(ip) & mask_long;
@@ -165,7 +178,7 @@ function diff(a: i64, b: i64): i64 {
 @inline
 function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
-  return 2 ** i64(number_to_binary_str(num).length - 1);
+  return 2 ** i64(number_to_binary_length(num) - 1);
 }
 
 function subparts($start: i64, $end: i64): i64[][] {
@@ -262,8 +275,7 @@ export function merge(nets: string[]): string[] {
   let start: i64 = -1;
   let end: i64 = -1;
 
-  const numbers: i64[] = maps.keys();
-  numbers.sort((a: i64, b: i64) => {
+  const numbers: i64[] = maps.keys().sort((a: i64, b: i64) => {
     if (a > b) return 1;
     if (a < b) return -1;
     return 0;
