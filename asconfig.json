@@ -14,7 +14,7 @@
       "textFile": "build/release.wat",
       "optimize": true,
       "sourceMap": true,
-      "optimizeLevel": 3,
+      "optimizeLevel": 4,
       "shrinkLevel": 0,
       "converge": true,
       "noAssert": true
