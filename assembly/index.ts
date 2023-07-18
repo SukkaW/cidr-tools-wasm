@@ -177,19 +177,19 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
   return v4;
 }
 
-// @ts-expect-error -- special assemblyscript instruction
-@inline
-function diff(a: i64, b: i64): i64 {
-  a += 1;
-  return a - b;
-}
+// // @ts-expect-error -- special assemblyscript instruction
+// @inline
+// function diff(a: i64, b: i64): i64 {
+//   a += 1;
+//   return a - b;
+// }
 
-// @ts-expect-error -- special assemblyscript instruction
-@inline
-function biggestPowerOfTwo(num: i64): i64 {
-  if (num === 0) return 0;
-  return 1 << (number_to_binary_length(num) - 1);
-}
+// // @ts-expect-error -- special assemblyscript instruction
+// @inline
+// function biggestPowerOfTwo(num: i64): i64 {
+//   if (num === 0) return 0;
+//   return 1 << (number_to_binary_length(num) - 1);
+// }
 
 function subparts($start: i64, $end: i64): StaticArray<i64>[] {
   // special case for when part is length 1
@@ -201,8 +201,8 @@ function subparts($start: i64, $end: i64): StaticArray<i64>[] {
     }
   }
 
-  const size = diff($end, $start);
-  let biggest = biggestPowerOfTwo(size);
+  const size: i64 = $end + 1 - $start; /* diff($end, $start); */
+  let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1)); /* biggestPowerOfTwo(size); */
 
   if (size === biggest && $start + size === $end) {
     return [StaticArray.fromArray([$start, $end])];
@@ -251,18 +251,6 @@ function subparts($start: i64, $end: i64): StaticArray<i64>[] {
 // const ZERO_CHARCODE = 48 /* '0'.charCodeAt(0) */;
 
 function single_range_to_single_cidr(start: i64, end: i64): string {
-  // const bin = number_to_binary_str(diff(end, start));
-  // let zeroes = 0;
-
-  // for (let i = 0, len = bin.length; i < len; i++) {
-  //   if (bin.charCodeAt(i) === ZERO_CHARCODE) {
-  //     zeroes++;
-  //   }
-  // }
-
-  // const prefix = 32 - zeroes;
-  // return `${int_to_ip_str(start)}/${prefix}`;
-
   let bits: i64 = 32;
   let a: i64 = (1 << (32 - bits));
 
@@ -353,9 +341,7 @@ export function merge(nets: string[]): string[] {
 }
 
 // exclude b from a and return remainder cidrs
-function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>[] {
-  const parts: StaticArray<i64>[] = [];
-
+function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>[] {
   const a_start = a[0];
   const a_end = a[1];
 
@@ -384,12 +370,25 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>
     return [];
   }
 
+  const remaining: StaticArray<i64>[] = [];
+  let $: StaticArray<i64>;
+  let subpart: StaticArray<i64>[];
+  let j: i32 = 0;
+  let len2: i32 = 0;
+
   // aaaa
   //   bbbb
   // aaaa
   //   bb
   if (a_start < b_start && a_end <= b_end) {
-    parts.push([a_start, b_start - 1]);
+    subpart = subparts(a_start, b_start - 1);
+    j = 0;
+    len2 = subpart.length;
+
+    for (; j < len2; j++) {
+      $ = subpart[j];
+      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+    }
   }
 
   //    aaa
@@ -397,25 +396,33 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>
   //   aaaa
   //   bbb
   if (a_start >= b_start && a_end > b_end) {
-    parts.push([b_end + 1, a_end]);
+    subpart = subparts(b_end + 1, a_end);
+    j = 0;
+    len2 = subpart.length;
+
+    for (; j < len2; j++) {
+      $ = subpart[j];
+      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+    }
   }
 
   //  aaaa
   //   bb
   if (a_start < b_start && a_end > b_end) {
-    parts.push([a_start, b_start - 1]);
-    parts.push([b_end + 1, a_end]);
-  }
+    subpart = subparts(a_start, b_start - 1);
+    j = 0;
+    len2 = subpart.length;
+    for (; j < len2; j++) {
+      $ = subpart[j];
+      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+    }
 
-  const remaining: StaticArray<i64>[] = [];
-
-  for (let i = 0, len = parts.length; i < len; i++) {
-    const part = parts[i];
-    const subpart = subparts(part[0], part[1]);
-
-    for (let j = 0, len2 = subpart.length; j < len2; j++) {
-      const $ = subpart[j];
-      remaining.push([$[0], $[1]]);
+    subpart = subparts(b_end + 1, a_end);
+    j = 0;
+    len2 = subpart.length;
+    for (; j < len2; j++) {
+      $ = subpart[j];
+      remaining.push(StaticArray.fromArray([$[0], $[1]]));
     }
   }
 
@@ -425,11 +432,11 @@ function excludeNets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64>
 export function exclude(_basenets: string[], _exclnets: string[]): string[] {
   const exclnets: string[] = _exclnets.length === 1 ? _exclnets : merge(_exclnets);
 
-  let basenets_tuple: StaticArray<i64>[] = [];
   const basenets_len = _basenets.length;
+  let basenets_tuple = new Array<StaticArray<i64>>(basenets_len);
 
   if (basenets_len === 1) {
-    basenets_tuple.push(parse(_basenets[0]));
+    basenets_tuple[0] = parse(_basenets[0]);
   } else {
     basenets_tuple = new Array<StaticArray<i64>>(basenets_len);
     for (let i = 0; i < basenets_len; i++) {
@@ -445,7 +452,7 @@ export function exclude(_basenets: string[], _exclnets: string[]): string[] {
     let index = 0;
     while (index < basenets_tuple.length) {
       const base = basenets_tuple[index];
-      const remainders = excludeNets(base, excl);
+      const remainders = exclude_nets(base, excl);
       if (remainders.length !== 1 || remainders[0][0] !== base[0] || remainders[0][1] !== base[1]) {
         basenets_tuple = basenets_tuple.concat(remainders);
         basenets_tuple.splice(index, 1);
@@ -455,10 +462,12 @@ export function exclude(_basenets: string[], _exclnets: string[]): string[] {
     }
   }
 
-  const results: string[] = [];
+  const result_len = basenets_tuple.length;
+
+  const results = new Array<string>(result_len);
   for (let i = 0, len = basenets_tuple.length; i < len; i++) {
     const net = basenets_tuple[i];
-    results.push(single_range_to_single_cidr(net[0], net[1]));
+    results[i] = single_range_to_single_cidr(net[0], net[1]);
   }
   return results;
 }

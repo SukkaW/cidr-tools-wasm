@@ -24,7 +24,7 @@ const b = require('benny');
       ]);
     }),
 
-    b.add('cidr-tools-wasm', async () => {
+    b.add('cidr-tools-wasm', () => {
       wasmExclude(['0.0.0.0/0'], [
         '0.0.0.0/8',
         '224.0.0.0/4',
