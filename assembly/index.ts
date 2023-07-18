@@ -1,47 +1,57 @@
 // @ts-expect-error -- special assemblyscript instruction
 @inline
 function ip_str_to_int(ip: string): i64 {
-  let ip_part_index = 0
+  // let ip_part_index = 0
 
-  let n_s_buffer = '';
+  // let n_s_buffer = '';
 
   let ip_part_0 = '';
   let ip_part_1 = '';
   let ip_part_2 = '';
   let ip_part_3 = '';
 
-  for (let i = 0, len = ip.length; i < len; i++) {
-    const s = ip.charAt(i);
-    if (s === '.') {
-      switch (ip_part_index) {
-        case 0:
-          ip_part_0 = n_s_buffer;
-          break;
-        case 1:
-          ip_part_1 = n_s_buffer;
-          break;
-        case 2:
-          ip_part_2 = n_s_buffer;
-          break;
-        case 3:
-          ip_part_3 = n_s_buffer;
-          break;
-      }
+  const splitted = ip.split('.');
+  ip_part_0 = splitted[0];
+  ip_part_1 = splitted[1];
+  ip_part_2 = splitted[2];
+  ip_part_3 = splitted[3];
 
-      ip_part_index += 1;
+  // for (let i = 0, len = ip.length; i < len; i++) {
+  //   const s = ip.charAt(i);
+  //   if (s === '.') {
+  //     switch (ip_part_index) {
+  //       case 0:
+  //         ip_part_0 = n_s_buffer;
+  //         break;
+  //       case 1:
+  //         ip_part_1 = n_s_buffer;
+  //         break;
+  //       case 2:
+  //         ip_part_2 = n_s_buffer;
+  //         break;
+  //       case 3:
+  //         ip_part_3 = n_s_buffer;
+  //         break;
+  //       default:
+  //         break;
+  //     }
 
-      n_s_buffer = '';
-    } else {
-      n_s_buffer += s;
-    }
-  }
+  //     ip_part_index += 1;
 
-  ip_part_3 = n_s_buffer;
+  //     n_s_buffer = '';
+  //   } else {
+  //     n_s_buffer += s;
+  //   }
+  // }
 
-  return (i64.parse(ip_part_0) << 24
+  // ip_part_3 = n_s_buffer;
+
+  return (
+    i64.parse(ip_part_0) << 24
     | i64.parse(ip_part_1) << 16
     | i64.parse(ip_part_2) << 8
-    | i64.parse(ip_part_3));
+    | i64.parse(ip_part_3)
+  );
 }
 
 // @ts-expect-error -- special assemblyscript instruction
@@ -90,8 +100,8 @@ function number_to_binary_length(input: i64): i64 {
   let len: i64 = 0;
 
   while (input > 0) {
-    len += 1;
-    input = input >> 1;
+    len++;
+    input >>= 1;
   }
 
   return len;
@@ -122,7 +132,7 @@ export function parse(cidr: string): StaticArray<i64> {
   }
 
   const net_long: i64 = ip_str_to_int(ip) & mask_long;
-  const size: i64 = 2 ** (32 - bitmask);
+  const size: i64 = 1 << (32 - bitmask);
 
   const start = net_long;
   const end = net_long + size - 1;
@@ -178,16 +188,16 @@ function diff(a: i64, b: i64): i64 {
 @inline
 function biggestPowerOfTwo(num: i64): i64 {
   if (num === 0) return 0;
-  return 2 ** (number_to_binary_length(num) - 1);
+  return 1 << (number_to_binary_length(num) - 1);
 }
 
 function subparts($start: i64, $end: i64): StaticArray<i64>[] {
   // special case for when part is length 1
   if (($end - $start) === 1) {
     if ($end % 2 === 0) {
-      return [[$start, $start], [$end, $end]];
+      return [StaticArray.fromArray([$start, $start]), StaticArray.fromArray([$end, $end])];
     } else {
-      return [[$start, $end]];
+      return [StaticArray.fromArray([$start, $end])];
     }
   }
 
@@ -195,7 +205,7 @@ function subparts($start: i64, $end: i64): StaticArray<i64>[] {
   let biggest = biggestPowerOfTwo(size);
 
   if (size === biggest && $start + size === $end) {
-    return [[$start, $end]];
+    return [StaticArray.fromArray([$start, $end])];
   }
 
   let start: i64, end: i64;
@@ -254,10 +264,14 @@ function single_range_to_single_cidr(start: i64, end: i64): string {
   // return `${int_to_ip_str(start)}/${prefix}`;
 
   let bits: i64 = 32;
+  let a: i64 = (1 << (32 - bits));
+
   let reseau: i64 = start;
-  while ((start & (1 << (32 - bits))) === 0 && (reseau | (1 << (32 - bits))) <= end) {
-    reseau |= (1 << (32 - bits));
+  while ((start & a) === 0 && (reseau | a) <= end) {
+    reseau |= a;
+
     bits -= 1;
+    a = (1 << (32 - bits));
   }
   return `${int_to_ip_str(start)}/${bits}`;
 }
@@ -300,14 +314,14 @@ function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
       for (let j = 0, len = p2.length; j < len; j++) {
         const $2: StaticArray<i64> = p2[j];
 
-        merged.push([$2[0], $2[1]]);
+        merged.push(StaticArray.fromArray([$2[0], $2[1]]));
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
         const $1: StaticArray<i64> = p1[i];
 
-        merged.push([$1[0], $1[1]]);
+        merged.push(StaticArray.fromArray([$1[0], $1[1]]));
       }
       start = -1;
       end = -1;
@@ -318,18 +332,21 @@ function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
 }
 
 export function merge(nets: string[]): string[] {
-  const toBeMapped: StaticArray<i64>[] = [];
+  const nets_len = nets.length;
+  const toBeMapped = new Array<StaticArray<i64>>(nets_len);
 
-  for (let i = 0, len = nets.length; i < len; i++) {
-    toBeMapped.push(parse(nets[i]));
+  for (let i = 0; i < nets_len; i++) {
+    toBeMapped[i] = parse(nets[i]);
   }
 
   const merged = inner_merge(toBeMapped);
-  const results: string[] = [];
+  const merged_len = merged.length;
 
-  for (let i = 0, len = merged.length; i < len; i++) {
+  const results = new Array<string>(merged_len);
+
+  for (let i = 0; i < merged_len; i++) {
     const net = merged[i];
-    results.push(single_range_to_single_cidr(net[0], net[1]));
+    results[i] = single_range_to_single_cidr(net[0], net[1]);
   }
 
   return results;
@@ -409,11 +426,14 @@ export function exclude(_basenets: string[], _exclnets: string[]): string[] {
   const exclnets: string[] = _exclnets.length === 1 ? _exclnets : merge(_exclnets);
 
   let basenets_tuple: StaticArray<i64>[] = [];
-  if (_basenets.length === 1) {
+  const basenets_len = _basenets.length;
+
+  if (basenets_len === 1) {
     basenets_tuple.push(parse(_basenets[0]));
   } else {
-    for (let i = 0, len = _basenets.length; i < len; i++) {
-      basenets_tuple.push(parse(_basenets[i]));
+    basenets_tuple = new Array<StaticArray<i64>>(basenets_len);
+    for (let i = 0; i < basenets_len; i++) {
+      basenets_tuple[i] = parse(_basenets[i]);
     }
     basenets_tuple = inner_merge(basenets_tuple);
   }
@@ -422,14 +442,16 @@ export function exclude(_basenets: string[], _exclnets: string[]): string[] {
     const exclcidr = exclnets[i];
     const excl = parse(exclcidr);
 
-    for (let index = 0; index < basenets_tuple.length; index++) {
+    let index = 0;
+    while (index < basenets_tuple.length) {
       const base = basenets_tuple[index];
       const remainders = excludeNets(base, excl);
-
       if (remainders.length !== 1 || remainders[0][0] !== base[0] || remainders[0][1] !== base[1]) {
         basenets_tuple = basenets_tuple.concat(remainders);
         basenets_tuple.splice(index, 1);
       }
+
+      index++;
     }
   }
 
