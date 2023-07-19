@@ -429,7 +429,7 @@ function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64
   return inner_merge(remaining);
 }
 
-export function exclude(_basenets: string[], _exclnets: string[]): string[] {
+export function exclude(_basenets: string[], _exclnets: string[], sort: bool = false): string[] {
   const exclnets: string[] = _exclnets.length === 1 ? _exclnets : merge(_exclnets);
 
   const basenets_len = _basenets.length;
@@ -460,6 +460,14 @@ export function exclude(_basenets: string[], _exclnets: string[]): string[] {
 
       index++;
     }
+  }
+
+  if (sort) {
+    basenets_tuple.sort((a: StaticArray<i64>, b: StaticArray<i64>) => {
+      if (a[0] > b[0]) return 1;
+      if (a[0] < b[0]) return -1;
+      return 0;
+    });
   }
 
   const result_len = basenets_tuple.length;
