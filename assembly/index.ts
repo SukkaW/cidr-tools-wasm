@@ -1,6 +1,6 @@
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function ip_str_to_int(ip: string): i64 {
+export function ip_str_to_int(ip: string): i64 {
   // let ip_part_index = 0
 
   // let n_s_buffer = '';
@@ -56,7 +56,7 @@ function ip_str_to_int(ip: string): i64 {
 
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function int_to_ip_str(number: i64): string {
+export function int_to_ip_str(number: i64): string {
   const part_0 = number >>> 24;
   const part_1 = (number >>> 16) & 0xff;
   const part_2 = (number >>> 8) & 0xff;
