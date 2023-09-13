@@ -107,6 +107,15 @@ function number_to_binary_length(input: i64): i64 {
   return len;
 }
 
+// @ts-expect-error -- special assemblyscript instruction
+@inline
+function create_static_tuple(a: i64, b: i64): StaticArray<i64> {
+  const arr = new StaticArray<i64>(2);
+  arr[0] = a;
+  arr[1] = b;
+  return arr;
+}
+
 export function parse(cidr: string): StaticArray<i64> {
   let ip = '';
   let prefix_str = '';
@@ -137,41 +146,32 @@ export function parse(cidr: string): StaticArray<i64> {
   const start = net_long;
   const end = net_long + size - 1;
 
-  return StaticArray.fromArray([start, end]);
+  return create_static_tuple(start, end);
 }
 
-function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
-  const v4 = new Map<i64, i64[]>();
+function mapNets(nets: StaticArray<i64>[]): Map<i64, StaticArray<i64>> {
+  const v4 = new Map<i64, StaticArray<i64>>();
 
   for (let i = 0, len = nets.length; i < len; i++) {
-    const start: i64 = nets[i][0];
-    const end: i64 = nets[i][1];
+    const net = nets[i];
+    const start: i64 = net[0];
+    const end: i64 = net[1];
 
-    if (!v4.has(start)) {
-      v4.set(start, [0, 0]);
-    }
-    if (!v4.has(end)) {
-      v4.set(end, [0, 0]);
-    }
-
-    const _1 = v4.get(start);
-
+    const _1 = v4.has(start) ? v4.get(start) : create_static_tuple(0, 0);
     if (_1[0]) {
-      _1[0] += 1;
-      v4.set(start, _1);
+      _1[0] = _1[0] + 1;
     } else {
       _1[0] = 1;
-      v4.set(start, _1);
     }
+    v4.set(start, _1);
 
-    const _2 = v4.get(end);
+    const _2 = v4.has(end) ? v4.get(end) : create_static_tuple(0, 0);
     if (_2[1]) {
-      _2[1] += 1;
-      v4.set(end, _2);
+      _2[1] = _2[1] + 1;
     } else {
       _2[1] = 1;
-      v4.set(end, _2);
     }
+    v4.set(end, _2);
   }
 
   return v4;
@@ -191,13 +191,13 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, i64[]> {
 //   return 1 << (number_to_binary_length(num) - 1);
 // }
 
-function subparts($start: i64, $end: i64): StaticArray<i64>[] {
+function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   // special case for when part is length 1
   if (($end - $start) === 1) {
     if ($end % 2 === 0) {
-      return [StaticArray.fromArray([$start, $start]), StaticArray.fromArray([$end, $end])];
+      return StaticArray.fromArray([create_static_tuple($start, $start), create_static_tuple($end, $end)]);
     } else {
-      return [StaticArray.fromArray([$start, $end])];
+      return StaticArray.fromArray([create_static_tuple($start, $end)]);
     }
   }
 
@@ -205,7 +205,7 @@ function subparts($start: i64, $end: i64): StaticArray<i64>[] {
   let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1)); /* biggestPowerOfTwo(size); */
 
   if (size === biggest && $start + size === $end) {
-    return [StaticArray.fromArray([$start, $end])];
+    return StaticArray.fromArray([create_static_tuple($start, $end)]);
   }
 
   let start: i64, end: i64;
@@ -233,7 +233,7 @@ function subparts($start: i64, $end: i64): StaticArray<i64>[] {
     }
   }
 
-  let parts: StaticArray<i64>[] = [[start, end]];
+  let parts: StaticArray<StaticArray<i64>> = StaticArray.fromArray([create_static_tuple(start, end)]);
 
   // additional subnets on left side
   if (start !== $start) {
@@ -272,11 +272,13 @@ function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
   let start: i64 = -1;
   let end: i64 = -1;
 
-  const numbers: i64[] = maps.keys().sort((a: i64, b: i64) => {
-    if (a > b) return 1;
-    if (a < b) return -1;
-    return 0;
-  });
+  const numbers: StaticArray<i64> = StaticArray.fromArray(
+    maps.keys().sort((a: i64, b: i64) => {
+      if (a > b) return 1;
+      if (a < b) return -1;
+      return 0;
+    })
+  );
 
   let depth: i64 = 0;
 
@@ -302,14 +304,14 @@ function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
       for (let j = 0, len = p2.length; j < len; j++) {
         const $2: StaticArray<i64> = p2[j];
 
-        merged.push(StaticArray.fromArray([$2[0], $2[1]]));
+        merged.push(create_static_tuple($2[0], $2[1]));
       }
     } else if (marker_1 && depth === 0 && ((numbers[index + 1] - numbers[index]) > 1)) {
       const p1 = subparts(start, end);
       for (let i = 0, len = p1.length; i < len; i++) {
         const $1: StaticArray<i64> = p1[i];
 
-        merged.push(StaticArray.fromArray([$1[0], $1[1]]));
+        merged.push(create_static_tuple($1[0], $1[1]));
       }
       start = -1;
       end = -1;
@@ -333,8 +335,7 @@ export function merge(nets: string[]): string[] {
   const results = new Array<string>(merged_len);
 
   for (let i = 0; i < merged_len; i++) {
-    const net = merged[i];
-    results[i] = single_range_to_single_cidr(net[0], net[1]);
+    results[i] = single_range_to_single_cidr(merged[i][0], merged[i][1]);
   }
 
   return results;
@@ -371,8 +372,7 @@ function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64
   }
 
   const remaining: StaticArray<i64>[] = [];
-  let $: StaticArray<i64>;
-  let subpart: StaticArray<i64>[];
+  let subpart: StaticArray<StaticArray<i64>>;
   let j: i32 = 0;
   let len2: i32 = 0;
 
@@ -386,8 +386,7 @@ function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64
     len2 = subpart.length;
 
     for (; j < len2; j++) {
-      $ = subpart[j];
-      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+      remaining.push(create_static_tuple(subpart[j][0], subpart[j][1]));
     }
   }
 
@@ -401,8 +400,7 @@ function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64
     len2 = subpart.length;
 
     for (; j < len2; j++) {
-      $ = subpart[j];
-      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+      remaining.push(create_static_tuple(subpart[j][0], subpart[j][1]));
     }
   }
 
@@ -413,16 +411,14 @@ function exclude_nets(a: StaticArray<i64>, b: StaticArray<i64>): StaticArray<i64
     j = 0;
     len2 = subpart.length;
     for (; j < len2; j++) {
-      $ = subpart[j];
-      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+      remaining.push(create_static_tuple(subpart[j][0], subpart[j][1]));
     }
 
     subpart = subparts(b_end + 1, a_end);
     j = 0;
     len2 = subpart.length;
     for (; j < len2; j++) {
-      $ = subpart[j];
-      remaining.push(StaticArray.fromArray([$[0], $[1]]));
+      remaining.push(create_static_tuple(subpart[j][0], subpart[j][1]));
     }
   }
 
