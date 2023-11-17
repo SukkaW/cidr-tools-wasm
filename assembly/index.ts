@@ -1,56 +1,13 @@
 // @ts-expect-error -- special assemblyscript instruction
 @inline
 export function ip_str_to_int(ip: string): i64 {
-  // let ip_part_index = 0
-
-  // let n_s_buffer = '';
-
-  let ip_part_0 = '';
-  let ip_part_1 = '';
-  let ip_part_2 = '';
-  let ip_part_3 = '';
-
   const splitted = ip.split('.');
-  ip_part_0 = splitted[0];
-  ip_part_1 = splitted[1];
-  ip_part_2 = splitted[2];
-  ip_part_3 = splitted[3];
-
-  // for (let i = 0, len = ip.length; i < len; i++) {
-  //   const s = ip.charAt(i);
-  //   if (s === '.') {
-  //     switch (ip_part_index) {
-  //       case 0:
-  //         ip_part_0 = n_s_buffer;
-  //         break;
-  //       case 1:
-  //         ip_part_1 = n_s_buffer;
-  //         break;
-  //       case 2:
-  //         ip_part_2 = n_s_buffer;
-  //         break;
-  //       case 3:
-  //         ip_part_3 = n_s_buffer;
-  //         break;
-  //       default:
-  //         break;
-  //     }
-
-  //     ip_part_index += 1;
-
-  //     n_s_buffer = '';
-  //   } else {
-  //     n_s_buffer += s;
-  //   }
-  // }
-
-  // ip_part_3 = n_s_buffer;
 
   return (
-    i64.parse(ip_part_0) << 24
-    | i64.parse(ip_part_1) << 16
-    | i64.parse(ip_part_2) << 8
-    | i64.parse(ip_part_3)
+    i64.parse(splitted[0]) << 24
+    | i64.parse(splitted[1]) << 16
+    | i64.parse(splitted[2]) << 8
+    | i64.parse(splitted[3])
   );
 }
 
@@ -117,36 +74,21 @@ function create_static_tuple(a: i64, b: i64): StaticArray<i64> {
 }
 
 export function parse(cidr: string): StaticArray<i64> {
-  let ip = '';
-  let prefix_str = '';
+  const splitted = cidr.split('/');
+  const ip = splitted[0];
 
-  let state: i32 = 0;
-  for (let i = 0, len = cidr.length; i < len; i++) {
-    const s = cidr.charAt(i);
-    if (state === 0) {
-      if (s === '/') {
-        state = 1;
-      } else {
-        ip += s;
-      }
-    } else {
-      prefix_str += s;
-    }
-  }
-
-  const bitmask: i64 = prefix_str.length > 0 ? i64.parse(prefix_str) : 32;
-  let mask_long: i64 = 0;
-  if (bitmask > 0) {
-    mask_long = 0xffffffff << (32 - bitmask);
-  }
+  const bitmask: i64 = splitted.length > 1 ? i64.parse(splitted[1]) : 32;
+  const mask_long: i64 = bitmask > 0
+    ? 0xffffffff << (32 - bitmask)
+    : 0;
 
   const net_long: i64 = ip_str_to_int(ip) & mask_long;
   const size: i64 = 1 << (32 - bitmask);
 
-  const start = net_long;
-  const end = net_long + size - 1;
-
-  return create_static_tuple(start, end);
+  return create_static_tuple(
+    net_long /** start */,
+    net_long + size - 1 /** end */
+  );
 }
 
 function mapNets(nets: StaticArray<i64>[]): Map<i64, StaticArray<i64>> {
@@ -195,9 +137,14 @@ function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   // special case for when part is length 1
   if (($end - $start) === 1) {
     if ($end % 2 === 0) {
-      return StaticArray.fromArray([create_static_tuple($start, $start), create_static_tuple($end, $end)]);
+      const r = new StaticArray<StaticArray<i64>>(2);
+      r[0] = create_static_tuple($start, $start);
+      r[1] = create_static_tuple($end, $end);
+      return r;
     } else {
-      return StaticArray.fromArray([create_static_tuple($start, $end)]);
+      const r = new StaticArray<StaticArray<i64>>(1);
+      r[0] = create_static_tuple($start, $end);
+      return r;
     }
   }
 
@@ -205,7 +152,9 @@ function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1)); /* biggestPowerOfTwo(size); */
 
   if (size === biggest && $start + size === $end) {
-    return StaticArray.fromArray([create_static_tuple($start, $end)]);
+    const r = new StaticArray<StaticArray<i64>>(1);
+    r[0] = create_static_tuple($start, $end);
+    return r;
   }
 
   let start: i64, end: i64;
@@ -258,7 +207,7 @@ function single_range_to_single_cidr(start: i64, end: i64): string {
   while ((start & a) === 0 && (reseau | a) <= end) {
     reseau |= a;
 
-    bits -= 1;
+    bits--;
     a = (1 << (32 - bits));
   }
   return `${int_to_ip_str(start)}/${bits}`;
@@ -434,7 +383,6 @@ export function exclude(_basenets: string[], _exclnets: string[], sort: bool = f
   if (basenets_len === 1) {
     basenets_tuple[0] = parse(_basenets[0]);
   } else {
-    basenets_tuple = new Array<StaticArray<i64>>(basenets_len);
     for (let i = 0; i < basenets_len; i++) {
       basenets_tuple[i] = parse(_basenets[i]);
     }
@@ -450,7 +398,10 @@ export function exclude(_basenets: string[], _exclnets: string[], sort: bool = f
       const base = basenets_tuple[index];
       const remainders = exclude_nets(base, excl);
       if (remainders.length !== 1 || remainders[0][0] !== base[0] || remainders[0][1] !== base[1]) {
-        basenets_tuple = basenets_tuple.concat(remainders);
+        for (let j = 0, len = remainders.length; j < len; j++) {
+          basenets_tuple.push(remainders[j]);
+        }
+
         basenets_tuple.splice(index, 1);
       }
 
@@ -467,9 +418,8 @@ export function exclude(_basenets: string[], _exclnets: string[], sort: bool = f
   }
 
   const result_len = basenets_tuple.length;
-
   const results = new Array<string>(result_len);
-  for (let i = 0, len = basenets_tuple.length; i < len; i++) {
+  for (let i = 0; i < result_len; i++) {
     const net = basenets_tuple[i];
     results[i] = single_range_to_single_cidr(net[0], net[1]);
   }
