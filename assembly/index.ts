@@ -119,20 +119,6 @@ function mapNets(nets: StaticArray<i64>[]): Map<i64, StaticArray<i64>> {
   return v4;
 }
 
-// // @ts-expect-error -- special assemblyscript instruction
-// @inline
-// function diff(a: i64, b: i64): i64 {
-//   a += 1;
-//   return a - b;
-// }
-
-// // @ts-expect-error -- special assemblyscript instruction
-// @inline
-// function biggestPowerOfTwo(num: i64): i64 {
-//   if (num === 0) return 0;
-//   return 1 << (number_to_binary_length(num) - 1);
-// }
-
 function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   // special case for when part is length 1
   if (($end - $start) === 1) {
@@ -197,20 +183,10 @@ function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   return parts;
 }
 
-// const ZERO_CHARCODE = 48 /* '0'.charCodeAt(0) */;
-
 function single_range_to_single_cidr(start: i64, end: i64): string {
-  let bits: i64 = 32;
-  let a: i64 = (1 << (32 - bits));
-
-  let reseau: i64 = start;
-  while ((start & a) === 0 && (reseau | a) <= end) {
-    reseau |= a;
-
-    bits--;
-    a = (1 << (32 - bits));
-  }
-  return `${int_to_ip_str(start)}/${bits}`;
+  const ip = int_to_ip_str(start);
+  const x = 32 - popcnt(end - start);
+  return `${ip}/${x}`;
 }
 
 function inner_merge(nets: StaticArray<i64>[]): StaticArray<i64>[] {
