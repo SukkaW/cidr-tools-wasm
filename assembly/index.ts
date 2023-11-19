@@ -22,35 +22,6 @@ export function int_to_ip_str(number: i64): string {
   return `${part_0}.${part_1}.${part_2}.${part_3}`;
 }
 
-//// @ts-expect-error -- special assemblyscript instruction
-// @inline
-// function number_to_binary_str_with_prefix_zeros(input: i64, target_length: i32): string {
-//   let result = '';
-//   for (let i = target_length - 1; i >= 0; i--) {
-//     if (((input >> i) & 1) === 0) {
-//       result += '0';
-//     } else {
-//       result += '1';
-//     }
-//   };
-//   return result;
-// }
-
-// // @ts-expect-error -- special assemblyscript instruction
-// @inline
-// function number_to_binary_str(input: i64): string {
-//   let binary = '';
-//   while (input > 0) {
-//     if ((input & 1) === 0) {
-//       binary = '0' + binary;
-//     } else {
-//       binary = '1' + binary;
-//     }
-//     input = input >> 1;
-//   }
-//   return binary;
-// }
-
 // @ts-expect-error -- special assemblyscript instruction
 @inline
 function number_to_binary_length(input: i64): i64 {
@@ -135,7 +106,8 @@ function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   }
 
   const size: i64 = $end + 1 - $start; /* diff($end, $start); */
-  let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1)); /* biggestPowerOfTwo(size); */
+  // TODO: use ctz
+  let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1));
 
   if (size === biggest && $start + size === $end) {
     const r = new StaticArray<StaticArray<i64>>(1);
