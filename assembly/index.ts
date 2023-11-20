@@ -1,14 +1,24 @@
 // @ts-expect-error -- special assemblyscript instruction
 @inline
 export function ip_str_to_int(ip: string): i64 {
-  const splitted = ip.split('.');
+  let a: i64 = 24;
+  let buf = '';
+  let result: i64 = 0;
 
-  return (
-    i64.parse(splitted[0]) << 24
-    | i64.parse(splitted[1]) << 16
-    | i64.parse(splitted[2]) << 8
-    | i64.parse(splitted[3])
-  );
+  for (let i = 0, len = ip.length; i < len; i++) {
+    const char = ip.charAt(i);
+    if (char === '.') {
+      result |= (i64.parse(buf) << a);
+      a -= 8;
+      buf = '';
+    } else {
+      buf += char;
+    }
+  }
+
+  result |= i64.parse(buf);
+
+  return result;
 }
 
 // @ts-expect-error -- special assemblyscript instruction
