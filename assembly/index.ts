@@ -24,19 +24,6 @@ export function int_to_ip_str(number: i64): string {
 
 // @ts-expect-error -- special assemblyscript instruction
 @inline
-function number_to_binary_length(input: i64): i64 {
-  let len: i64 = 0;
-
-  while (input > 0) {
-    len++;
-    input >>= 1;
-  }
-
-  return len;
-}
-
-// @ts-expect-error -- special assemblyscript instruction
-@inline
 function create_static_tuple(a: i64, b: i64): StaticArray<i64> {
   const arr = new StaticArray<i64>(2);
   arr[0] = a;
@@ -106,8 +93,10 @@ function subparts($start: i64, $end: i64): StaticArray<StaticArray<i64>> {
   }
 
   const size: i64 = $end + 1 - $start; /* diff($end, $start); */
-  // TODO: use ctz
-  let biggest: i64 = size === 0 ? 0 : (1 << (number_to_binary_length(size) - 1));
+
+  let biggest: i64 = size === 0
+    ? 0
+    : 2 ** (64 - i64.clz(size) - 1)
 
   if (size === biggest && $start + size === $end) {
     const r = new StaticArray<StaticArray<i64>>(1);
